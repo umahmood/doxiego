@@ -24,12 +24,12 @@ var (
 	ErrDoxieNotFound = errors.New("doxie: scanner not found on Wi-Fi network")
 	// ErrScanNotFound error when scans.json endpoint returns an empty body
 	ErrScanNotFound = errors.New("doxie: scan(s) not found scanners memory may be busy")
-	// ErrDeletingScan error when delete.json endpoint cannot delete a scan
+	// ErrDeletingScan error when the endpoint cannot delete a scan
 	ErrDeletingScan = errors.New("doxie: error deleting scan(s)")
 	// ErrDownloadingScan request for scan returns no data
 	ErrDownloadingScan = errors.New("doxie: error downloading scan")
 	// ErrNoThumbnail thumbnail has not yet been generated.
-	ErrNoThumbnail = errors.New("doxie: thumbnail no yet generated")
+	ErrNoThumbnail = errors.New("doxie: thumbnail not yet generated")
 )
 
 var (
@@ -59,7 +59,7 @@ type Doxie struct {
 	IP string
 	// URL of the Doxie API
 	URL string
-	// Scanner password base64 encoded
+	// Scanner password
 	Password string
 }
 
