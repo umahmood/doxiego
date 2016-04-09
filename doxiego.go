@@ -8,6 +8,7 @@ import (
 	"image"
 	"image/jpeg"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"path"
 	"strconv"
@@ -33,10 +34,12 @@ var (
 )
 
 var (
-	// APModeURL URL of scanner when it creates its own network
-	APModeURL = "http://192.168.1.100:8080/"
+	// APModeIP URL of scanner when it creates its own network
+	APModeIP = "192.168.1.100"
 	// StaticIP of the scanner when it joins client network
 	StaticIP string
+	// Port default port of the doxie scanner
+	Port = 8080
 )
 
 // Doxie represents a Doxie scanner instance
@@ -90,31 +93,44 @@ type response struct {
 // one has been set. The values returned depend on whether the scanner is creating
 // its own network or joining an existing network.
 func Hello() (*Doxie, error) {
-	findDoxieOnAPNetwork := func(url string, chd chan *Doxie, che chan error) {
-		r := httpGetRequest(url+"hello.json", "")
+	findDoxieOnAPNetwork := func(chd chan *Doxie, che chan error) {
+		sayHello(APModeIP, chd, che)
+	}
 
-		if r.err != nil {
-			che <- r.err
-			return
-		}
+	findDoxieOnClientNetwork := func(chd chan *Doxie, che chan error) {
+		discover := "M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: \"ssdp:discover\"\r\nMX: 1\r\nST: urn:schemas-getdoxie-com:device:Scanner:1\r\n\r\n"
 
-		if r.statusCode != http.StatusOK {
-			ErrHTTPRequest = errors.New("doxie: request error http " + strconv.Itoa(r.statusCode))
-			che <- ErrHTTPRequest
-			return
-		}
-
-		var dox Doxie
-
-		err := json.Unmarshal(r.data, &dox)
+		ssdpAddr, err := net.ResolveUDPAddr("udp4", "239.255.255.250:1900")
 		if err != nil {
 			che <- err
 			return
 		}
 
-		dox.URL = APModeURL
+		conn, err := net.ListenUDP("udp4", nil)
+		if err != nil {
+			che <- err
+			return
+		}
 
-		chd <- &dox
+		defer conn.Close()
+
+		_, err = conn.WriteTo([]byte(discover), ssdpAddr)
+		if err != nil {
+			che <- err
+			return
+		}
+
+		buffer := make([]byte, 1024)
+
+		_, addr, err := conn.ReadFrom(buffer)
+		if err != nil {
+			che <- err
+			return
+		}
+
+		ip := strings.Split(addr.String(), ":")
+
+		sayHello(ip[0], chd, che)
 	}
 
 	var dox *Doxie
@@ -124,10 +140,10 @@ func Hello() (*Doxie, error) {
 	chErr := make(chan error)
 
 	// Find Doxie on the network it creates - 'AP' mode
-	go findDoxieOnAPNetwork(APModeURL, chDox, chErr)
+	go findDoxieOnAPNetwork(chDox, chErr)
 
-	// TODO: Find Doxie on the network it joins - 'Client' mode
-	// go findDoxieOnClientNetwork(StaticIP, chDox, chErr)
+	// Find Doxie on the network it joins - 'Client' mode
+	go findDoxieOnClientNetwork(chDox, chErr)
 
 	select {
 	case dox = <-chDox:
@@ -363,6 +379,41 @@ func getScanHelper(url, path, name, password string) (image.Image, error) {
 	}
 
 	return img, nil
+}
+
+// sayHello connects to the scanner.
+func sayHello(ip string, chd chan *Doxie, che chan error) {
+	var url string
+	if StaticIP != "" {
+		url = fmt.Sprintf("http://%s:%d/", StaticIP, Port)
+	} else {
+		url = fmt.Sprintf("http://%s:%d/", ip, Port)
+	}
+
+	r := httpGetRequest(url+"hello.json", "")
+
+	if r.err != nil {
+		che <- r.err
+		return
+	}
+
+	if r.statusCode != http.StatusOK {
+		ErrHTTPRequest = errors.New("doxie: request error http " + strconv.Itoa(r.statusCode))
+		che <- ErrHTTPRequest
+		return
+	}
+
+	var dox Doxie
+
+	err := json.Unmarshal(r.data, &dox)
+	if err != nil {
+		che <- err
+		return
+	}
+
+	dox.URL = url
+
+	chd <- &dox
 }
 
 // httpGetRequest makes a request to a HTTP endpoint
