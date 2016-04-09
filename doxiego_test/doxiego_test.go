@@ -2,8 +2,11 @@ package doxiego_test
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/umahmood/doxiego"
@@ -42,7 +45,17 @@ func startTestServer() *httptest.Server {
 			p := r.URL.Path
 			switch p {
 			case "/hello.json":
-				const r = string(`{ "model": "DX250",
+				if respFlags.clientMode {
+					fmt.Fprintf(w, `{ "model": "DX250",
+                        "name": "Doxie_042D6A",
+                        "firmwareWiFi": "1.29",
+                        "hasPassword": false,
+                        "MAC": "00:11:E5:04:2D:6A",
+                        "mode": "Client",
+                        "network": "my-wifi",
+                        "ip": "192.168.0.18"}`)
+				} else {
+					fmt.Fprintf(w, `{ "model": "DX250",
                         "name": "Doxie_042D6A",
                         "firmwareWiFi": "1.29",
                         "hasPassword": false,
@@ -50,18 +63,18 @@ func startTestServer() *httptest.Server {
                         "mode": "AP",
                         "network": "",
                         "ip": ""}`)
-				fmt.Fprintf(w, r)
+				}
+				// fmt.Fprintf(w, r)
 			case "/hello_extra.json":
-				const r = string(`{ "firmware": "0.26",
-                        "connectedToExternalPower": true}`)
-				fmt.Fprintf(w, r)
+				fmt.Fprintf(w, `{ "firmware": "0.26", 
+					"connectedToExternalPower": true}`)
 			case "/restart.json":
 				w.WriteHeader(http.StatusNoContent)
 			case "/scans.json":
 				if respFlags.emptyScans {
 					fmt.Fprintf(w, "[]")
 				} else {
-					const r = string(`[{
+					fmt.Fprintf(w, `[{
 	                    "name":"/DOXIE/JPEG/IMG_0001.JPG",
 	                    "size":241220,
 	                    "modified":"2010-05-01 00:10:06"
@@ -76,14 +89,12 @@ func startTestServer() *httptest.Server {
 	                    "size":273522,
 	                    "modified":"2010-05-01 00:09:44"
 	                    }]`)
-					fmt.Fprintf(w, r)
 				}
 			case "/scans/recent.json":
 				if respFlags.noRecent {
 					w.WriteHeader(http.StatusNoContent)
 				} else {
-					const r = string(`{"path":"/DOXIE/JPEG/IMG_0003.JPG"}`)
-					fmt.Fprintf(w, r)
+					fmt.Fprintf(w, `{"path":"/DOXIE/JPEG/IMG_0003.JPG"}`)
 				}
 			case "/scans/DOXIE/JPEG/IMG_001.JPG":
 				w.WriteHeader(http.StatusOK)
@@ -103,7 +114,13 @@ func startTestServer() *httptest.Server {
 				w.WriteHeader(http.StatusNotFound)
 			}
 		}))
-		doxiego.APModeURL = ts.URL + "/"
+		endPoint := strings.Split(ts.URL[7:], ":")
+		doxiego.APModeIP = endPoint[0]
+		p, err := strconv.Atoi(endPoint[1])
+		if err != nil {
+			log.Fatalln(err)
+		}
+		doxiego.Port = p
 		s <- struct{}{}
 	}()
 	_ = <-s
@@ -162,7 +179,60 @@ func TestHelloAPMode(t *testing.T) {
 }
 
 func TestHelloClientMode(t *testing.T) {
-	fmt.Println("*** NOT IMPLEMENTED ***")
+	ts := startTestServer()
+
+	defer func() {
+		ts.Close()
+		respFlags.clientMode = false
+	}()
+
+	respFlags.clientMode = true
+
+	want := doxiego.Doxie{
+		HasPassword:  false,
+		Model:        "DX250",
+		Name:         "Doxie_042D6A",
+		FirmwareWiFi: "1.29",
+		MAC:          "00:11:E5:04:2D:6A",
+		Mode:         "Client",
+		Network:      "my-wifi",
+		IP:           "192.168.0.18",
+		URL:          ts.URL + "/",
+	}
+
+	doxieGo, err := doxiego.Hello()
+	if err != nil {
+		t.Errorf("%s", err)
+	}
+
+	if doxieGo.HasPassword != want.HasPassword {
+		t.Errorf("hello: HasPassword want %t got %t",
+			want.HasPassword, doxieGo.HasPassword)
+	} else if doxieGo.Model != want.Model {
+		t.Errorf("hello: Model want %s got %s",
+			want.Model, doxieGo.Model)
+	} else if doxieGo.Name != want.Name {
+		t.Errorf("hello: Name want %s got %s",
+			want.Name, doxieGo.Name)
+	} else if doxieGo.FirmwareWiFi != want.FirmwareWiFi {
+		t.Errorf("hello: WiFiFirmware want %s got %s",
+			want.FirmwareWiFi, doxieGo.FirmwareWiFi)
+	} else if doxieGo.MAC != want.MAC {
+		t.Errorf("hello: MAC want %s got %s",
+			want.MAC, doxieGo.MAC)
+	} else if doxieGo.Mode != want.Mode {
+		t.Errorf("hello: Mode want %s got %s",
+			want.Mode, doxieGo.Mode)
+	} else if doxieGo.Network != want.Network {
+		t.Errorf("hello: Network want %s got %s",
+			want.Network, doxieGo.Network)
+	} else if doxieGo.IP != want.IP {
+		t.Errorf("hello: IP want %s got %s",
+			want.IP, doxieGo.IP)
+	} else if doxieGo.URL != want.URL {
+		t.Errorf("hello: URL want %s got %s",
+			want.URL, doxieGo.URL)
+	}
 }
 
 func TestPasswordField(t *testing.T) {
