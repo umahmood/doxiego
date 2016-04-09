@@ -34,7 +34,7 @@ var (
 )
 
 var (
-	// APModeIP URL of scanner when it creates its own network
+	// APModeIP ip of scanner when it creates its own network
 	APModeIP = "192.168.1.100"
 	// StaticIP of the scanner when it joins client network
 	StaticIP string
