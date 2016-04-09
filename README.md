@@ -4,8 +4,6 @@ DoxieGo is command line tool and Go library to communicate with a [Doxie Go Wi-F
 
 Note: This project is not affiliated with [Apparent](http://www.itsapparent.com/products/index.html) or [Doxie](http://www.getdoxie.com/).
 
-Note: Currently the code only works when the Doxie is in AP mode (your computer joins Doxies built in wi-fi network).
-
 # Installation
 
 > go get github.com/umahmood/doxiego <br/>
@@ -21,15 +19,15 @@ Name: Doxie_0591E0 <br/>
 Model: DX250 <br/>
 Has Password: false <br/>
 Wi-Fi Firmware: 1.29 <br/>
-MAC: omitted :) <br/>
+MAC: FA-B2-5A-66-EE-94 <br/>
 Mode: AP (Doxies own Wi-Fi network) <br/>
 URL: http://192.168.1.100:8080/ <br/>
 
 Display a list of all scans:
 
 > $ doxiego -scans <br/>
-- name: IMG_0002.JPG size: 959458 modified: 2010-05-01 00:03:26 <br/>
-- name: IMG_0003.JPG size: 941949 modified: 2010-05-01 00:06:44 <br/>
+name: IMG_0002.JPG size: 959458 modified: 2010-05-01 00:03:26 <br/>
+name: IMG_0003.JPG size: 941949 modified: 2010-05-01 00:06:44 <br/>
 
 Delete a list of scans (multiple scan names are comma separated):
 
@@ -54,7 +52,6 @@ downloaded scan IMG_0003.JPG <br/>
 For help:
 
 > $ doxiego -help <br/>
-...
 
 # Usage from the API:
 
@@ -112,7 +109,8 @@ See GoDoc for full capability of the API.
 
 # Testing
 
-- The codebase has been tested with a single Doxie Go Wi-Fi scanner. The API could be used to communicate with multiple Doxie Go Wi-Fi scanners.
+- The code base has been tested with a single Doxie Go Wi-Fi scanner, in both
+AP and Client network modes.
 
 # License
 
